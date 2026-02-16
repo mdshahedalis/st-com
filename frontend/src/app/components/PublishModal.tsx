@@ -21,7 +21,7 @@ export default function PublishModal({ isOpen, onClose, onConfirm }: { isOpen: b
             Continue Editing
           </button>
           <button onClick={onConfirm} className="flex-1 py-2.5 bg-[#003371] rounded-[6px] text-[13px] font-bold text-white hover:bg-[#002855]">
-            Save changes
+            Publish
           </button>
         </div>
       </div>

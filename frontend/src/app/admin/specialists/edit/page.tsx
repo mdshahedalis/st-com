@@ -8,7 +8,9 @@ import { Upload, Info, CheckCircle, Loader2, ArrowLeft } from "lucide-react";
 import EditSpecialistDrawer from "@/app/components/EditSpecialistDrawer";
 import PublishModal from "@/app/components/PublishModal";
 
-const API_BASE = "http://localhost:5000/api/specialists"; 
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const API_BASE =`${baseUrl}/specialists`;
 
 // --- Types for TSX Safety ---
 interface SpecialistData {
@@ -21,6 +23,10 @@ interface SpecialistData {
   final_price: number;
   offerings: string[];
   is_draft: boolean;
+  // Added Image Fields
+  cover_image?: string;
+  gallery_image_1?: string;
+  gallery_image_2?: string;
 }
 
 function EditSpecialistContent() {
@@ -42,7 +48,10 @@ function EditSpecialistContent() {
     platform_fee: 0,
     final_price: 0,
     offerings: [],
-    is_draft: true
+    is_draft: true,
+    cover_image: "",
+    gallery_image_1: "",
+    gallery_image_2: ""
   });
 
   // --- 1. Fetch Data ---
@@ -77,7 +86,10 @@ function EditSpecialistContent() {
           platform_fee: platformFee,
           final_price: finalPrice,
           offerings: resData.offerings || [],
-          is_draft: resData.is_draft ?? true
+          is_draft: resData.is_draft ?? true,
+          cover_image: resData.cover_image || "",
+          gallery_image_1: resData.gallery_image_1 || "",
+          gallery_image_2: resData.gallery_image_2 || "",
         });
         setLoading(false);
       } catch (error) {
@@ -89,18 +101,15 @@ function EditSpecialistContent() {
     fetchData();
   }, [id, router]);
 
-  // --- 2. Save Updates ---
   const handleSave = async (formData: any) => {
     try {
-      // Backend expects 'base_price' to recalculate fees
       const response = await axios.put(`${API_BASE}/${id}`, {
         ...formData,
-        base_price: formData.base_price // Ensure we send the explicitly edited price
+        base_price: formData.base_price 
       });
       
       const resData = response.data;
       
-      // Update UI with newly calculated values from backend
       setData(prev => ({
         ...prev,
         title: resData.title,
@@ -110,7 +119,10 @@ function EditSpecialistContent() {
         platform_fee: Number(resData.platform_fee),
         final_price: Number(resData.final_price),
         offerings: resData.offerings || formData.offerings,
-        is_draft: resData.is_draft
+        is_draft: resData.is_draft,
+        cover_image: resData.cover_image || formData.cover_image,
+        gallery_image_1: resData.gallery_image_1 || formData.gallery_image_1,
+        gallery_image_2: resData.gallery_image_2 || formData.gallery_image_2,
       }));
 
       setIsDrawerOpen(false);
@@ -147,7 +159,6 @@ function EditSpecialistContent() {
   return (
     <div className="min-h-screen bg-[#F8F9FB] p-8 font-sans">
       
-      {/* Back Button */}
       <button 
         onClick={() => router.back()} 
         className="flex items-center gap-2 text-gray-500 hover:text-[#003371] mb-6 text-sm font-bold transition-colors"
@@ -156,24 +167,63 @@ function EditSpecialistContent() {
       </button>
 
       <div className="flex flex-col lg:flex-row gap-8 max-w-[1400px] mx-auto">
-        
-        {/* LEFT COLUMN: Service Preview */}
+
         <div className="flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-[28px] font-bold text-[#222222] leading-tight">{data.title}</h1>
           
-          {/* Image Grid */}
+          {/* --- Image Grid (Updated to Show Actual Images) --- */}
           <div className="grid grid-cols-2 gap-4 h-[380px]">
-            <div className="bg-[#E5E7EB] rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-6">
-              <Upload size={40} className="text-gray-400 mb-3" />
-              <p className="text-[11px] text-gray-500 max-w-[150px]">Upload an image for your specialist listing in PNG, JPG or JPEG up to 4MB</p>
+            
+            {/* Cover Image Slot */}
+            <div className="bg-[#E5E7EB] rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-6 relative overflow-hidden">
+               {data.cover_image ? (
+                  <Image 
+                    src={data.cover_image} 
+                    alt="Cover" 
+                    fill 
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+               ) : (
+                  <>
+                    <Upload size={40} className="text-gray-400 mb-3" />
+                    <p className="text-[11px] text-gray-500 max-w-[150px]">
+                        Upload an image for your specialist listing in PNG, JPG or JPEG up to 4MB
+                    </p>
+                  </>
+               )}
             </div>
+
             <div className="grid grid-rows-2 gap-4">
-               <div className="bg-gray-200 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400 text-xs">No Image</div>
-               <div className="bg-gray-200 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400 text-xs">No Image</div>
+               {/* Gallery Image 1 Slot */}
+               <div className="bg-gray-200 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400 text-xs">
+                  {data.gallery_image_1 ? (
+                      <Image 
+                        src={data.gallery_image_1} 
+                        alt="Gallery 1" 
+                        fill 
+                        className="object-cover" 
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                      />
+                  ) : "No Image"}
+               </div>
+
+               {/* Gallery Image 2 Slot */}
+               <div className="bg-gray-200 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400 text-xs">
+                  {data.gallery_image_2 ? (
+                      <Image 
+                        src={data.gallery_image_2} 
+                        alt="Gallery 2" 
+                        fill 
+                        className="object-cover" 
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                      />
+                  ) : "No Image"}
+               </div>
             </div>
           </div>
 
-          {/* Description */}
+
           <div>
             <h3 className="text-[16px] font-bold text-[#222222] mb-2">Description</h3>
             <div className="pb-6 border-b border-gray-200 text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
@@ -197,8 +247,8 @@ function EditSpecialistContent() {
           <div className="pt-6">
              <h3 className="text-[16px] font-bold text-[#222222] mb-4">Company Secretary</h3>
              <div className="flex items-start gap-4">
-               <div className="w-12 h-12 rounded-full bg-blue-100 overflow-hidden border border-gray-100">
-                 <Image src="/assets/avatar.png" width={48} height={48} alt="User" />
+               <div className="w-12 h-12 rounded-full bg-blue-100 overflow-hidden border border-gray-100 relative">
+                 <Image src="/assets/avatar.png" fill className="object-cover" alt="User" />
                </div>
                <div>
                  <div className="flex items-center gap-2">

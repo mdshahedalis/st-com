@@ -10,73 +10,72 @@ module.exports = new EntitySchema({
       primary: true,
       generated: "uuid",
     },
-
-    average_rating: {
-      type: "decimal",
-      nullable: true,
-    },
-
-    is_draft: {
-      type: "boolean",
-      default: true,
-    },
-
-    total_number_of_ratings: {
-      type: "int",
-      default: 0,
-    },
-
     title: {
       type: "varchar",
     },
-
     slug: {
       type: "varchar",
     },
-
     description: {
       type: "text",
+    },
+    
+    cover_image: {
+      type: "varchar",
+      nullable: true,
+    },
+    gallery_image_1: {
+      type: "varchar",
+      nullable: true,
+    },
+    gallery_image_2: {
+      type: "varchar",
+      nullable: true,
     },
 
     base_price: {
       type: "decimal",
     },
-
     platform_fee: {
       type: "decimal",
       nullable: true,
     },
-
     final_price: {
       type: "decimal",
       nullable: true,
     },
-
+    duration_days: {
+      type: "int",
+    },
+    average_rating: {
+      type: "decimal",
+      nullable: true,
+    },
+    total_number_of_ratings: {
+      type: "int",
+      default: 0,
+    },
+    is_draft: {
+      type: "boolean",
+      default: true,
+    },
     verification_status: {
       type: "enum",
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-
     is_verified: {
       type: "boolean",
       default: false,
     },
-
-    duration_days: {
-      type: "int",
-    },
-
     created_at: {
       type: "timestamp",
       createDate: true,
     },
-
     updated_at: {
       type: "timestamp",
       updateDate: true,
     },
-
     deleted_at: {
       type: "timestamp",
       deleteDate: true,
@@ -90,7 +89,6 @@ module.exports = new EntitySchema({
       target: "Media",
       inverseSide: "specialist",
     },
-
     service_offerings: {
       type: "one-to-many",
       target: "ServiceOffering",

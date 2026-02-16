@@ -54,7 +54,7 @@ module.exports = new EntitySchema({
       nullable: true,
     },
   },
-
+  
   relations: {
     specialist: {
       type: "many-to-one",

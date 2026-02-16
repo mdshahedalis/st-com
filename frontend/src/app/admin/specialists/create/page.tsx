@@ -7,7 +7,9 @@ import EditSpecialistDrawer from "@/app/components/EditSpecialistDrawer";
 import PublishModal from "@/app/components/PublishModal";
 
 
-const API_BASE = "http://localhost:5000/api/specialists";
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const API_BASE =`${baseUrl}/specialists`;
 
 export default function CreateSpecialistPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -26,32 +28,26 @@ export default function CreateSpecialistPage() {
     is_draft: true
   });
 
-  // --- API INTEGRATION ---
 
-  // 1. Create or Update (triggered by Drawer Confirm)
   const handleSave = async (formData: any) => {
     try {
       let response;
       if (specialistId) {
-        // UPDATE existing (PUT /:id)
-        // Backend 'updateSpecialist' recalculates price if base_price is sent
         response = await axios.put(`${API_BASE}/${specialistId}`, formData);
       } else {
-        // CREATE new (POST /)
-        // Backend 'createSpecialist' expects base_price, returns calculated fees
         response = await axios.post(`${API_BASE}/`, formData);
-        setSpecialistId(response.data.id); // Save ID for future updates
+        setSpecialistId(response.data.id);
       }
 
-      // Update UI with Backend Response (including calculated fees)
+    
       const resData = response.data;
       setData({
         title: resData.title,
         description: resData.description,
         duration_days: resData.duration_days,
         base_price: Number(resData.base_price),
-        platform_fee: Number(resData.platform_fee), // Comes from Backend Repo Logic
-        final_price: Number(resData.final_price),   // Comes from Backend Repo Logic
+        platform_fee: Number(resData.platform_fee),
+        final_price: Number(resData.final_price),
         offerings: resData.offerings || formData.offerings,
         is_draft: resData.is_draft
       });

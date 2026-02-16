@@ -1,11 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import axios from "axios"; // Ensure axios is installed
+import axios from "axios"; 
 import { Search, Plus, Download, MoreVertical, Trash2, Edit, Loader2 } from "lucide-react";
 
-// Define the API URL (Adjust port if needed)
-const API_URL = "http://localhost:5000/api/specialists";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const API_URL = `${baseUrl}/specialists`;
 
 export default function SpecialistsDashboard() {
   const [activeTab, setActiveTab] = useState("All");
@@ -19,7 +19,8 @@ export default function SpecialistsDashboard() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // --- Fetch Data from Backend ---
-  const fetchData = async () => {
+  // Wrapped in useCallback to prevent infinite re-renders and fix linting error
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Map tabs to backend 'status' query param
@@ -38,29 +39,27 @@ export default function SpecialistsDashboard() {
 
       setData(response.data.data);
       setTotalPages(response.data.totalPages);
-      setLoading(false);
     } catch (error) {
       console.error("Failed to fetch specialists:", error);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, page, search]); // Dependencies that trigger a re-fetch
 
-  // Trigger fetch when Tab, Page, or Search changes
   useEffect(() => {
     fetchData();
-  }, [activeTab, page, search]);
+  }, [fetchData]); // Now safe to add fetchData as dependency
 
   // --- Badge Logic ---
   const getApprovalBadge = (status: string) => {
-       
     const label = status || "Under-Review"; 
-    const styles = {
+    const styles: { [key: string]: string } = {
       "Approved": "bg-emerald-100 text-emerald-600",
       "Under-Review": "bg-cyan-100 text-cyan-600",
       "Rejected": "bg-red-100 text-red-600",
-    }[label] || "bg-gray-100 text-gray-600";
+    };
     
-    return <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${styles}`}>{label}</span>;
+    return <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${styles[label] || "bg-gray-100 text-gray-600"}`}>{label}</span>;
   };
 
   const getPublishBadge = (is_draft: boolean) => {
@@ -73,7 +72,7 @@ export default function SpecialistsDashboard() {
   const handleDelete = async (id: string) => {
     if(!confirm("Are you sure you want to delete this specialist?")) return;
     try {
-      await axios.delete(`${API_URL}/${id}`); // Ensure you have a DELETE route in backend
+      await axios.delete(`${API_URL}/${id}`); 
       fetchData(); // Refresh list
     } catch (error) {
       console.error("Delete failed", error);
@@ -84,7 +83,7 @@ export default function SpecialistsDashboard() {
     <div className="p-8 bg-white min-h-screen font-sans">
       <div className="mb-6">
         <h1 className="text-[24px] font-bold text-[#222222]">Specialists</h1>
-        <p className="text-[13px] text-gray-500 mt-1">Create and publish your specialist services for Client's & Companies</p>
+        <p className="text-[13px] text-gray-500 mt-1">Create and publish your specialist services for Client s & Companies</p>
       </div>
 
       {/* Tabs */}

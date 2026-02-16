@@ -1,8 +1,7 @@
 const DB = require("../config/datasource");
-const specialistRepo = () => DB.getRepository("Specialist");
-const platformFeeRepo = () => DB.getRepository("PlatformFee");
+const specialistRepo = DB.getRepository("Specialist");
+const platformFeeRepo = DB.getRepository("PlatformFee");
 
-// --- Helper: Generate Slug ---
 const createSlug = (title) => {
   if (!title) return `service-${Date.now()}`;
   return title
@@ -13,14 +12,14 @@ const createSlug = (title) => {
     .replace(/^-+|-+$/g, '') + '-' + Date.now();
 };
 
-// --- Helper: Calculate Pricing ---
 async function calculatePricing(basePrice) {
   if (basePrice === undefined || basePrice === null || basePrice === "") {
     return { platform_fee: 0, final_price: 0 };
   }
 
   const priceNum = Number(basePrice);
-  const fee = await platformFeeRepo()
+  
+  const fee = await platformFeeRepo
     .createQueryBuilder("pf")
     .where(":price >= pf.min_value AND :price <= pf.max_value", {
       price: priceNum,
@@ -39,12 +38,10 @@ async function calculatePricing(basePrice) {
   };
 }
 
-// --- Controllers ---
-
-exports.getAllSpecialists = async (req, res, next) => {
+exports.getAllSpecialists = async (req, res) => {
   try {
     const { status, search, page = 1, limit = 10 } = req.query;
-    const qb = specialistRepo().createQueryBuilder("s");
+    const qb = specialistRepo.createQueryBuilder("s");
 
     if (status === "draft") qb.andWhere("s.is_draft = :isDraft", { isDraft: true });
     if (status === "published") qb.andWhere("s.is_draft = :isDraft", { isDraft: false });
@@ -59,10 +56,10 @@ exports.getAllSpecialists = async (req, res, next) => {
 
     const [data, total] = await qb.getManyAndCount();
 
-    // Map 'price' back to 'base_price' for the frontend
+    // Ensure we return 'base_price' correctly for the frontend
     const mappedData = data.map(item => ({
         ...item,
-        base_price: item.price // Frontend expects base_price
+        base_price: item.base_price // Changed from item.price
     }));
 
     res.json({
@@ -73,99 +70,117 @@ exports.getAllSpecialists = async (req, res, next) => {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
-    next(error);
+    console.error("Get All Error:", error);
+    res.status(500).json({ message: "Error fetching specialists" });
   }
 };
 
-exports.getSpecialistById = async (req, res, next) => {
+exports.getSpecialistById = async (req, res) => {
   try {
     const { id } = req.params;
-    const specialist = await specialistRepo().findOneBy({ id });
+    const specialist = await specialistRepo.findOneBy({ id });
     
     if (!specialist) return res.status(404).json({ message: "Specialist not found" });
 
-    // Ensure frontend gets 'base_price'
-    const responseData = {
-        ...specialist,
-        base_price: specialist.price
-    };
-
-    res.json(responseData);
+    res.json(specialist); // The object should already have base_price
   } catch (error) {
-    next(error);
+    console.error("Get One Error:", error);
+    res.status(500).json({ message: "Error fetching specialist" });
   }
 };
 
-exports.createSpecialist = async (req, res, next) => {
+exports.createSpecialist = async (req, res) => {
   try {
-    // 1. Validate Input
-    if (req.body.base_price === undefined || req.body.base_price === null) {
-        return res.status(400).json({ message: "base_price is required" });
-    }
+    const { 
+        title, description, duration_days, base_price, offerings, 
+        cover_image, gallery_image_1, gallery_image_2 
+    } = req.body;
 
-    const pricing = await calculatePricing(req.body.base_price);
-    const slug = createSlug(req.body.title || "service");
+    const safePrice = base_price ? Number(base_price) : 0;
+    const pricing = await calculatePricing(safePrice);
+    const slug = createSlug(title);
 
-    // 2. Map 'base_price' (input) -> 'price' (Entity Property)
-    const specialist = specialistRepo().create({
-      ...req.body,
-      slug: slug,
-      price: req.body.base_price, // <--- IMPORTANT: Mapping to 'price' property
+    // FIXED: Changed 'price' to 'base_price' to match DB column
+    const newSpecialist = specialistRepo.create({
+      title,
+      slug,
+      description,
+      duration_days: Number(duration_days || 1),
+      offerings: offerings || [],
+      
+      base_price: safePrice,
       platform_fee: pricing.platform_fee,
       final_price: pricing.final_price,
-      is_draft: true,
+      
+      cover_image: cover_image || "",
+      gallery_image_1: gallery_image_1 || "",
+      gallery_image_2: gallery_image_2 || "",
+      is_draft: true, 
     });
 
-    const result = await specialistRepo().save(specialist);
+    const result = await specialistRepo.save(newSpecialist);
     res.status(201).json(result);
+
   } catch (error) {
-    next(error);
+    console.error("Create Error:", error);
+    res.status(500).json({ message: "Error creating specialist", error: error.message });
   }
 };
 
-exports.updateSpecialist = async (req, res, next) => {
+exports.updateSpecialist = async (req, res) => {
   try {
     const { id } = req.params;
-    const specialist = await specialistRepo().findOneBy({ id });
+    const { 
+        title, description, duration_days, base_price, offerings,
+        cover_image, gallery_image_1, gallery_image_2 
+    } = req.body;
 
+    const specialist = await specialistRepo.findOneBy({ id });
     if (!specialist) return res.status(404).json({ message: "Specialist not found" });
 
-    let updates = { ...req.body };
+    // Updates
+    if (title) {
+        specialist.title = title;
+        if (title !== specialist.title) specialist.slug = createSlug(title);
+    }
+    if (description !== undefined) specialist.description = description;
+    if (duration_days) specialist.duration_days = Number(duration_days);
+    if (offerings) specialist.offerings = offerings;
 
-    // 1. Handle Price Update
-    if (req.body.base_price !== undefined && req.body.base_price !== null) {
-      const pricing = await calculatePricing(req.body.base_price);
-      
-      updates.price = req.body.base_price; // <--- IMPORTANT: Mapping to 'price' property
-      updates.platform_fee = pricing.platform_fee;
-      updates.final_price = pricing.final_price;
+    // FIXED: Changed 'price' to 'base_price' here as well
+    if (base_price !== undefined && base_price !== null) {
+      const pricing = await calculatePricing(base_price);
+      specialist.base_price = Number(base_price); // <--- ERROR WAS HERE
+      specialist.platform_fee = pricing.platform_fee;
+      specialist.final_price = pricing.final_price;
     }
 
-    // 2. Handle Title/Slug Update
-    if (req.body.title && req.body.title !== specialist.title) {
-        updates.slug = createSlug(req.body.title);
-    }
+    // Image Updates
+    if (cover_image !== undefined) specialist.cover_image = cover_image;
+    if (gallery_image_1 !== undefined) specialist.gallery_image_1 = gallery_image_1;
+    if (gallery_image_2 !== undefined) specialist.gallery_image_2 = gallery_image_2;
 
-    // 3. Cleanup: Remove 'base_price' from updates object to avoid confusion
-    // (TypeORM might ignore it, but safe to remove)
-    delete updates.base_price; 
-
-    specialistRepo().merge(specialist, updates);
-    const updated = await specialistRepo().save(specialist);
-
+    const updated = await specialistRepo.save(specialist);
     res.json(updated);
+
   } catch (error) {
-    next(error);
+    console.error("Update Error:", error);
+    res.status(500).json({ message: "Error updating specialist", error: error.message });
   }
 };
 
-exports.publishSpecialist = async (req, res, next) => {
+exports.publishSpecialist = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await specialistRepo().update(id, { is_draft: false });
-    if (result.affected === 0) return res.status(404).json({ message: "Specialist not found" });
+    const specialist = await specialistRepo.findOneBy({ id });
+    if (!specialist) return res.status(404).json({ message: "Specialist not found" });
+
+    specialist.is_draft = false;
+    await specialistRepo.save(specialist);
+    
     res.json({ message: "Specialist published successfully" });
   } catch (error) {
-    next(error);
+    console.error("Publish Error:", error);
+    res.status(500).json({ message: "Error publishing specialist" });
   }
 };
