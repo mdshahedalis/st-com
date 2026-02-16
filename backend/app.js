@@ -7,6 +7,7 @@ const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const app = express();
 const specialistRoutes = require('./routes/specialist')
+const mediaRoutes = require('./routes/media')
 
 
 app.use(helmet());
@@ -43,6 +44,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/specialists", specialistRoutes);
+app.use('/api/images', mediaRoutes)
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
