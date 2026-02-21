@@ -78,9 +78,9 @@ export default function CreateSpecialistPage() {
     setData(prev => ({ ...prev, base_price: val === "" ? "" : Number(val) }));
   };
 
-  const handleSave = async (formData: any) => {
+ const handleSave = async (formData: any) => {
     try {
-      const payload = { ...formData, base_price: data.base_price };
+      const payload = { ...formData };
 
       let response;
       if (specialistId) {
@@ -103,19 +103,15 @@ export default function CreateSpecialistPage() {
       });
 
       setIsDrawerOpen(false);
-      
-      // Professional Success Message
       setNotification({ message: "Service details saved successfully!", type: "success" });
 
     } catch (error) {
       console.error("Error saving specialist:", error);
-      
-      // Professional Error Message
       setNotification({ message: "Failed to save changes. Please try again.", type: "error" });
       throw new Error("Failed to save changes."); 
     }
   };
-
+  
   const handlePublish = async () => {
     if (!specialistId) {
       setNotification({ message: "Please save your service details before publishing.", type: "error" });
@@ -275,3 +271,4 @@ export default function CreateSpecialistPage() {
   );
 
 }
+
