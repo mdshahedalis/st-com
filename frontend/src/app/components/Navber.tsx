@@ -58,7 +58,7 @@ const Navbar: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
               <Image 
-                src="/assets/avatar.png"
+                src="/images/image.png"
                 alt="Gwen Lam" 
                 width={40} 
                 height={40} 
@@ -130,14 +130,7 @@ const Navbar: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
 
           {/* Top Actions [cite: 165] */}
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 bg-[#003371] text-white px-5 py-[10px] rounded-md text-sm font-bold hover:bg-[#002855] transition-colors">
-              <Plus size={18} /> Create
-            </button>
-            <button className="flex items-center gap-2 border border-[#003371] text-[#003371] px-5 py-[10px] rounded-md text-sm font-bold hover:bg-[#F0F7FF] transition-colors">
-              <Download size={18} /> Export
-            </button>
 
-            {/* Utility Icons */}
             <div className="flex items-center gap-4 ml-4 border-l pl-6 border-gray-200 text-[#9CA3AF]">
               <Mail size={20} className="cursor-pointer hover:text-[#222222]" />
               <div className="relative cursor-pointer hover:text-[#222222]">
@@ -145,7 +138,7 @@ const Navbar: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
               </div>
               <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
-                <Image src="/assets/avatar-small.png" alt="User" width={32} height={32} />
+                <Image src="/images/image.png" alt="User" width={32} height={32} />
               </div>
             </div>
           </div>

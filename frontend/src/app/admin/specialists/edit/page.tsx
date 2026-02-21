@@ -3,14 +3,14 @@ import React, { useState, useEffect, Suspense } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Upload, Info, CheckCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, Info, CheckCircle, Loader2, ArrowLeft, AlertCircle, X } from "lucide-react";
 
 import EditSpecialistDrawer from "@/app/components/EditSpecialistDrawer";
 import PublishModal from "@/app/components/PublishModal";
-
+import CompanySecretary from "@/app/components/CompanySecretary";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-const API_BASE =`${baseUrl}/specialists`;
+const API_BASE = `${baseUrl}/specialists`;
 
 // --- Types for TSX Safety ---
 interface SpecialistData {
@@ -23,7 +23,6 @@ interface SpecialistData {
   final_price: number;
   offerings: string[];
   is_draft: boolean;
-  // Added Image Fields
   cover_image?: string;
   gallery_image_1?: string;
   gallery_image_2?: string;
@@ -37,6 +36,17 @@ function EditSpecialistContent() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // --- NEW: Professional Notification State ---
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // Auto-dismiss notifications after 3 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   // Initial State
   const [data, setData] = useState<SpecialistData>({
@@ -57,7 +67,6 @@ function EditSpecialistContent() {
   // --- 1. Fetch Data ---
   useEffect(() => {
     if (!id) {
-      alert("No Specialist ID provided.");
       router.push("/admin/specialists");
       return;
     }
@@ -94,6 +103,7 @@ function EditSpecialistContent() {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching specialist:", error);
+        setNotification({ message: "Failed to load specialist data.", type: "error" });
         setLoading(false);
       }
     };
@@ -126,9 +136,15 @@ function EditSpecialistContent() {
       }));
 
       setIsDrawerOpen(false);
+      
+      // Professional Success Message
+      setNotification({ message: "Service updated successfully!", type: "success" });
+
     } catch (error) {
       console.error("Update failed:", error);
-      alert("Failed to update. Check console.");
+      // Professional Error Message
+      setNotification({ message: "Failed to update service. Please try again.", type: "error" });
+      throw new Error("Failed to save changes."); // Throw error so the drawer can stop its loading spinner
     }
   };
 
@@ -138,10 +154,13 @@ function EditSpecialistContent() {
       await axios.post(`${API_BASE}/${id}/publish`);
       setData(prev => ({ ...prev, is_draft: false }));
       setIsPublishOpen(false);
-      alert("Specialist Published Successfully!");
+      
+      // Professional Success Message
+      setNotification({ message: "Specialist published successfully!", type: "success" });
     } catch (error) {
       console.error("Publish failed:", error);
-      alert("Failed to publish specialist.");
+      // Professional Error Message
+      setNotification({ message: "Failed to publish specialist.", type: "error" });
     }
   };
 
@@ -157,8 +176,23 @@ function EditSpecialistContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] p-8 font-sans">
+    <div className="min-h-screen bg-[#F8F9FB] p-8 font-sans relative">
       
+      {/* --- FLOATING TOAST NOTIFICATION --- */}
+      {notification && (
+        <div className={`fixed top-8 right-8 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-lg shadow-xl animate-in slide-in-from-top-5 duration-300 border ${
+          notification.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+            : 'bg-red-50 text-red-700 border-red-200'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle size={20} className="text-emerald-500" /> : <AlertCircle size={20} className="text-red-500" />}
+          <span className="text-[14px] font-bold">{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <button 
         onClick={() => router.back()} 
         className="flex items-center gap-2 text-gray-500 hover:text-[#003371] mb-6 text-sm font-bold transition-colors"
@@ -171,7 +205,7 @@ function EditSpecialistContent() {
         <div className="flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-[28px] font-bold text-[#222222] leading-tight">{data.title}</h1>
           
-          {/* --- Image Grid (Updated to Show Actual Images) --- */}
+          {/* --- Image Grid --- */}
           <div className="grid grid-cols-2 gap-4 h-[380px]">
             
             {/* Cover Image Slot */}
@@ -243,23 +277,8 @@ function EditSpecialistContent() {
             </div>
           </div>
 
-          {/* Company Secretary Profile */}
-          <div className="pt-6">
-             <h3 className="text-[16px] font-bold text-[#222222] mb-4">Company Secretary</h3>
-             <div className="flex items-start gap-4">
-               <div className="w-12 h-12 rounded-full bg-blue-100 overflow-hidden border border-gray-100 relative">
-                 <Image src="/assets/avatar.png" fill className="object-cover" alt="User" />
-               </div>
-               <div>
-                 <div className="flex items-center gap-2">
-                   <p className="text-sm font-bold">Grace Lam</p>
-                   <CheckCircle size={14} className="text-emerald-500 fill-emerald-100" />
-                 </div>
-                 <p className="text-[11px] text-gray-500 mb-2">Corpsec Services Sdn Bhd</p>
-                 <button className="bg-[#003371] text-white px-3 py-1 rounded-[4px] text-[10px] font-bold hover:bg-[#002855]">View Profile</button>
-               </div>
-             </div>
-          </div>
+          <CompanySecretary />
+          
         </div>
 
         {/* RIGHT COLUMN: Fee Card */}

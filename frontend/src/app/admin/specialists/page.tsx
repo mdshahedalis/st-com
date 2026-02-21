@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import axios from "axios"; 
-import { Search, Plus, Download, MoreVertical, Trash2, Edit, Loader2 } from "lucide-react";
+import { Search, Plus, Download, MoreVertical, Trash2, Edit, Loader2, AlertCircle, CheckCircle, X } from "lucide-react";
+import DeleteModal from "@/app/components/DeleteModal"; // <-- Import the new modal
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 const API_URL = `${baseUrl}/specialists`;
@@ -18,12 +19,25 @@ export default function SpecialistsDashboard() {
   const [search, setSearch] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // --- Fetch Data from Backend ---
-  // Wrapped in useCallback to prevent infinite re-renders and fix linting error
+  // Notification State
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // --- NEW: Custom Delete Modal State ---
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [specialistToDelete, setSpecialistToDelete] = useState<string | null>(null);
+
+  // Auto-dismiss notification after 3 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Fetch Data from Backend
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Map tabs to backend 'status' query param
       let statusParam = "";
       if (activeTab === "Drafts") statusParam = "draft";
       if (activeTab === "Published") statusParam = "published";
@@ -44,13 +58,12 @@ export default function SpecialistsDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, search]); // Dependencies that trigger a re-fetch
+  }, [activeTab, page, search]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Now safe to add fetchData as dependency
+  }, [fetchData]);
 
-  // --- Badge Logic ---
   const getApprovalBadge = (status: string) => {
     const label = status || "Under-Review"; 
     const styles: { [key: string]: string } = {
@@ -68,19 +81,48 @@ export default function SpecialistsDashboard() {
     return <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${style}`}>{label}</span>;
   };
 
-  // --- Delete Handler ---
-  const handleDelete = async (id: string) => {
-    if(!confirm("Are you sure you want to delete this specialist?")) return;
+  // --- UPDATED: Open Modal Instead of Native Alert ---
+  const openDeleteModal = (id: string) => {
+    setSpecialistToDelete(id);
+    setIsDeleteModalOpen(true);
+    setOpenMenuId(null); // Close the dropdown menu
+  };
+
+  // --- UPDATED: Actual Delete Execution ---
+  const executeDelete = async () => {
+    if (!specialistToDelete) return;
+
     try {
-      await axios.delete(`${API_URL}/${id}`); 
+      await axios.delete(`${API_URL}/${specialistToDelete}`); 
+      setNotification({ message: "Specialist deleted successfully!", type: "success" });
       fetchData(); // Refresh list
     } catch (error) {
       console.error("Delete failed", error);
+      setNotification({ message: "Failed to delete specialist.", type: "error" });
+    } finally {
+      setIsDeleteModalOpen(false); // Close the modal
+      setSpecialistToDelete(null); // Clear the ID
     }
   };
 
   return (
-    <div className="p-8 bg-white min-h-screen font-sans">
+    <div className="p-8 bg-white min-h-screen font-sans relative">
+      
+      {/* Floating Toast Notification */}
+      {notification && (
+        <div className={`fixed top-8 right-8 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-lg shadow-xl animate-in slide-in-from-top-5 duration-300 border ${
+          notification.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+            : 'bg-red-50 text-red-700 border-red-200'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle size={20} className="text-emerald-500" /> : <AlertCircle size={20} className="text-red-500" />}
+          <span className="text-[14px] font-bold">{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-[24px] font-bold text-[#222222]">Specialists</h1>
         <p className="text-[13px] text-gray-500 mt-1">Create and publish your specialist services for Client s & Companies</p>
@@ -91,7 +133,7 @@ export default function SpecialistsDashboard() {
         {["All", "Drafts", "Published"].map(tab => (
           <button
             key={tab}
-            onClick={() => { setActiveTab(tab); setPage(1); }} // Reset to page 1 on tab change
+            onClick={() => { setActiveTab(tab); setPage(1); }} 
             className={`px-8 py-3 text-[14px] font-bold border-b-2 transition-colors ${
               activeTab === tab ? "border-[#003371] text-[#003371]" : "border-transparent text-gray-400 hover:text-gray-600"
             }`}
@@ -119,7 +161,7 @@ export default function SpecialistsDashboard() {
               <Plus size={16} /> Create
             </button>
           </Link>
-          <button className="flex items-center gap-2 border border-[#003371] text-[#003371] px-5 py-2.5 rounded-[4px] text-[13px] font-bold hover:bg-blue-50">
+          <button className="flex items-center gap-2 px-8 py-2.5 bg-[#001D3D] text-white text-[13px] font-bold rounded-[6px] hover:opacity-90 transition-opacity">
             <Download size={16} /> Export
           </button>
         </div>
@@ -167,14 +209,15 @@ export default function SpecialistsDashboard() {
                       
                       {/* Action Dropdown */}
                       {openMenuId === item.id && (
-                        <div className="absolute right-8 top-8 w-32 bg-white shadow-xl rounded-lg border border-gray-100 z-10 py-1">
+                        <div className="absolute right-8 top-8 w-32 bg-white shadow-xl rounded-lg border border-gray-100 z-50 py-1">
                           <Link href={`/admin/specialists/edit?id=${item.id}`}>
                             <button className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 text-sm font-medium text-gray-700">
                               <Edit size={14} /> Edit
                             </button>
                           </Link>
+                          {/* UPDATED: Calls openDeleteModal instead of handleDelete directly */}
                           <button 
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => openDeleteModal(item.id)}
                             className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 text-sm font-medium text-red-600"
                           >
                             <Trash2 size={14} /> Delete
@@ -222,6 +265,14 @@ export default function SpecialistsDashboard() {
            Next &gt;
          </button>
       </div>
+
+      {/* --- NEW: Render Custom Delete Modal --- */}
+      <DeleteModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        onConfirm={executeDelete} 
+      />
+
     </div>
   );
 }

@@ -12,11 +12,11 @@ interface EditSpecialistDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   initialData: any;
-  onConfirm: (data: any) => void;
+  onConfirm: (data: any) => Promise<void>; // Updated to handle async
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-const UPLOAD_API =`${baseUrl}/images/upload`; 
+const UPLOAD_API = `${baseUrl}/images/upload`; 
 
 const RICH_SUGGESTIONS = [
   { id: "sec_sub", title: "Company Secretary Subscription", desc: "Enjoy 1 month free Company Secretary Subscription", icon: <UserPlus size={18} /> },
@@ -46,7 +46,8 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   
-  // Error & Success Message State
+  // Save State, Error & Success Message
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -90,12 +91,31 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
 
   if (!isOpen) return null;
 
-  // --- Upload Logic (With Error Handling) ---
+  // --- Main Save Handler ---
+  const handleSaveData = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    
+    try {
+      if (formData.base_price <= 0) {
+        throw new Error("Price must be greater than 0");
+      }
+      
+      await onConfirm(formData); // Calls parent function
+      setSuccessMessage("Service saved successfully!");
+    } catch (error: any) {
+      setErrorMessage(error.message || "Failed to save changes. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- Upload Logic ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset messages
     setErrorMessage(null);
     setSuccessMessage(null);
     setUploadingSlot(fieldName);
@@ -202,16 +222,10 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
           {/* Price & Duration Grid */}
           <div className="grid grid-cols-2 gap-6">
              <div className="space-y-2">
-                <label className="text-[13px] font-bold text-[#222222]">Price</label>
+                <label className="text-[13px] font-bold text-[#222222]">Base Price</label>
                 <div className="flex items-center w-full border border-gray-300 rounded-[4px] overflow-hidden">
                   <div className="px-3 bg-gray-50 border-r border-gray-300 h-full flex items-center gap-2">
-                    <div className="w-5 h-3 relative shadow-sm border border-gray-200">
-                        <div className="absolute inset-0 bg-[#000066]" />
-                        <div className="absolute top-0 right-0 h-[2px] w-3/4 bg-[#CC0000]" />
-                        <div className="absolute top-[4px] right-0 h-[2px] w-3/4 bg-[#CC0000]" />
-                        <div className="absolute bottom-0 right-0 h-[2px] w-3/4 bg-white" />
-                    </div>
-                    <span className="text-[12px] font-bold text-[#222222]">MYR</span>
+                    <span className="text-[12px] font-bold text-[#222222]">RM</span>
                   </div>
                   <input 
                     type="number"
@@ -221,6 +235,7 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
                     className="flex-1 px-3 py-2.5 text-[13px] text-[#222222] focus:outline-none"
                   />
                 </div>
+                <p className="text-[10px] text-gray-500">Platform fee (%) is auto-calculated</p>
              </div>
 
              <div className="space-y-2">
@@ -279,7 +294,6 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
                         </div>
                         
                         {imageUrl ? (
-                          // File Card State
                           <div className="bg-white border border-gray-200 rounded-[6px] p-2 flex items-center gap-3 shadow-sm">
                              <div className="w-10 h-10 rounded bg-gray-100 relative overflow-hidden shrink-0 border border-gray-100">
                                 <Image src={imageUrl} alt="preview" fill className="object-cover" />
@@ -296,7 +310,6 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
                              </button>
                           </div>
                         ) : (
-                          // Empty Upload State
                           <label className={`
                             group relative block w-full border-2 border-dashed border-gray-300 rounded-[6px] 
                             bg-white hover:bg-gray-50 hover:border-blue-400 transition-all cursor-pointer
@@ -320,18 +333,11 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
                                     <span className="bg-[#003371] text-white text-[10px] font-bold px-3 py-1 rounded-full mb-1 group-hover:bg-[#002855]">
                                         Browse
                                     </span>
-                                    <p className="text-[9px] text-gray-400 mt-1">or Drag a file to upload</p>
+                                    <p className="text-[9px] text-gray-400 mt-1">or Drag a file</p>
                                   </>
                                )}
                             </div>
                           </label>
-                        )}
-                        
-                        {!imageUrl && (
-                            <div className="flex justify-between text-[8px] text-gray-400 px-1">
-                                <span>JPG, PNG, WEBP</span>
-                                <span>Max 4MB</span>
-                            </div>
                         )}
                      </div>
                    );
@@ -410,18 +416,21 @@ const EditSpecialistDrawer: React.FC<EditSpecialistDrawerProps> = ({ isOpen, onC
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 flex gap-4 bg-white mt-auto sticky bottom-0">
+        <div className="p-6 border-t border-gray-100 flex gap-4 bg-white mt-auto sticky bottom-0 z-50">
           <button 
             onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-300 rounded-[6px] text-[13px] font-bold text-[#4B5563] hover:bg-gray-50 transition-colors"
+            disabled={isSaving}
+            className="flex-1 py-2.5 border border-gray-300 rounded-[6px] text-[13px] font-bold text-[#4B5563] hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
-            onClick={() => onConfirm(formData)}
-            className="flex-1 py-2.5 bg-[#003371] text-white rounded-[6px] text-[13px] font-bold hover:bg-[#002855] transition-colors shadow-lg shadow-blue-900/10"
+            onClick={handleSaveData}
+            disabled={isSaving}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#003371] text-white rounded-[6px] text-[13px] font-bold hover:bg-[#002855] transition-colors shadow-lg shadow-blue-900/10 disabled:opacity-70"
           >
-            Save Changes
+            {isSaving && <Loader2 size={16} className="animate-spin" />}
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

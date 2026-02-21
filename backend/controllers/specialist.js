@@ -12,9 +12,10 @@ const createSlug = (title) => {
     .replace(/^-+|-+$/g, '') + '-' + Date.now();
 };
 
+
 async function calculatePricing(basePrice) {
   if (basePrice === undefined || basePrice === null || basePrice === "") {
-    return { platform_fee: 0, final_price: 0 };
+    return { platform_fee: 0, final_price: 0, percentage: 0 };
   }
 
   const priceNum = Number(basePrice);
@@ -26,15 +27,15 @@ async function calculatePricing(basePrice) {
     })
     .getOne();
 
-  if (!fee) {
-    return { platform_fee: 0, final_price: priceNum };
-  }
 
-  const platformFee = (priceNum * Number(fee.platform_fee_percentage)) / 100;
+  const percentage = fee ? Number(fee.platform_fee_percentage) : 30;
+  
+  const platformFee = (priceNum * percentage) / 100;
 
   return {
     platform_fee: platformFee,
     final_price: priceNum + platformFee,
+    percentage: percentage 
   };
 }
 
@@ -56,10 +57,9 @@ exports.getAllSpecialists = async (req, res) => {
 
     const [data, total] = await qb.getManyAndCount();
 
-    // Ensure we return 'base_price' correctly for the frontend
     const mappedData = data.map(item => ({
         ...item,
-        base_price: item.base_price // Changed from item.price
+        base_price: item.base_price
     }));
 
     res.json({
@@ -82,7 +82,7 @@ exports.getSpecialistById = async (req, res) => {
     
     if (!specialist) return res.status(404).json({ message: "Specialist not found" });
 
-    res.json(specialist); // The object should already have base_price
+    res.json(specialist);
   } catch (error) {
     console.error("Get One Error:", error);
     res.status(500).json({ message: "Error fetching specialist" });
@@ -100,7 +100,6 @@ exports.createSpecialist = async (req, res) => {
     const pricing = await calculatePricing(safePrice);
     const slug = createSlug(title);
 
-    // FIXED: Changed 'price' to 'base_price' to match DB column
     const newSpecialist = specialistRepo.create({
       title,
       slug,
@@ -147,15 +146,13 @@ exports.updateSpecialist = async (req, res) => {
     if (duration_days) specialist.duration_days = Number(duration_days);
     if (offerings) specialist.offerings = offerings;
 
-    // FIXED: Changed 'price' to 'base_price' here as well
     if (base_price !== undefined && base_price !== null) {
       const pricing = await calculatePricing(base_price);
-      specialist.base_price = Number(base_price); // <--- ERROR WAS HERE
+      specialist.base_price = Number(base_price);
       specialist.platform_fee = pricing.platform_fee;
       specialist.final_price = pricing.final_price;
     }
 
-    // Image Updates
     if (cover_image !== undefined) specialist.cover_image = cover_image;
     if (gallery_image_1 !== undefined) specialist.gallery_image_1 = gallery_image_1;
     if (gallery_image_2 !== undefined) specialist.gallery_image_2 = gallery_image_2;
@@ -168,6 +165,25 @@ exports.updateSpecialist = async (req, res) => {
     res.status(500).json({ message: "Error updating specialist", error: error.message });
   }
 };
+
+
+exports.deleteSpecialist = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const specialist = await specialistRepo.findOneBy({ id });
+    
+    if (!specialist) {
+      return res.status(404).json({ message: "Specialist not found" });
+    }
+
+    await specialistRepo.softRemove(specialist); 
+    res.json({ message: "Specialist deleted successfully" });
+  } catch (error) {
+    console.error("Delete Error:", error);
+    res.status(500).json({ message: "Error deleting specialist" });
+  }
+};
+
 
 exports.publishSpecialist = async (req, res) => {
   try {
@@ -182,5 +198,30 @@ exports.publishSpecialist = async (req, res) => {
   } catch (error) {
     console.error("Publish Error:", error);
     res.status(500).json({ message: "Error publishing specialist" });
+  }
+};
+
+
+
+exports.previewPricing = async (req, res) => {
+  try {
+    const { base_price } = req.query;
+    
+    if (base_price === undefined || base_price === null || base_price === "") {
+        return res.json({ base_price: 0, platform_fee: 0, total: 0, percentage: 0 });
+    }
+
+    const safePrice = Number(base_price);
+    const pricing = await calculatePricing(safePrice);
+    
+    res.json({
+      base_price: safePrice,
+      platform_fee: pricing.platform_fee,
+      total: pricing.final_price,
+      percentage: pricing.percentage
+    });
+  } catch (error) {
+    console.error("Preview Pricing Error:", error);
+    res.status(500).json({ message: "Error calculating price preview" });
   }
 };

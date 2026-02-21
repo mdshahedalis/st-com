@@ -15,6 +15,7 @@ interface Specialist {
   authorName?: string; 
   authorRole?: string;
   authorAvatar?: string;
+  final_price: number;
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -120,7 +121,6 @@ export default function AllSpecialistsPage() {
               <div className="flex gap-2">
                 {[...Array(totalPages)].map((_, i) => {
                    const pageNum = i + 1;
-                   // Logic to limit visible pages if you have many pages
                    if (totalPages > 7 && Math.abs(pageNum - page) > 2 && pageNum !== 1 && pageNum !== totalPages) {
                       if (Math.abs(pageNum - page) === 3) return <span key={i} className="self-end px-1 text-gray-400">...</span>;
                       return null;
@@ -208,7 +208,7 @@ function SpecialistCard({ data, index }: { data: Specialist; index: number }) {
 
         <div className="pt-1">
            <span className="text-[16px] font-bold text-[#222222]">
-             RM {Number(data.base_price).toLocaleString()}
+             RM {Number(data.final_price).toLocaleString()}
            </span>
         </div>
       </div>
