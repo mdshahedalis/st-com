@@ -222,18 +222,9 @@ export default function CreateSpecialistPage() {
               <p className="text-[13px] text-gray-400">Set a rate for your specialist service</p>
             </div>
 
-            <div className="flex justify-center mb-10">
-              <div className="relative inline-flex items-center border-b-2 border-black pb-1">
-                <span className="text-[28px] font-bold text-[#222222] mr-2">RM</span>
-                <input
-                  type="number"
-                  value={data.base_price}
-                  onChange={handlePriceChange}
-                  className="text-[28px] font-bold text-[#222222] w-32 outline-none bg-transparent appearance-none"
-                  placeholder="0"
-                />
-              </div>
-            </div>
+           <div className="text-right border-b-2 border-[#222222] pb-2 mb-8">
+              <span className="text-[28px] font-bold text-[#222222]">RM {data.base_price.toLocaleString()}</span>
+           </div>
 
             {/* Breakdown */}
             <div className="space-y-4">
@@ -282,4 +273,5 @@ export default function CreateSpecialistPage() {
       />
     </div>
   );
+
 }
